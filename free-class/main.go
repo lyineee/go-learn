@@ -1,63 +1,116 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
+	"net/url"
 	"time"
 
-	"github.com/goinggo/mapstructure"
+	"github.com/go-redis/redis/v8"
 )
 
 type ClassCode struct {
-	Code string `mapstructure:"code"`
-	Name string `mapstructure:"name"`
+	Code string
+	Name string
 }
 
-type ClassResp struct {
+type ClassAllResp struct {
 	E int
 	M string
-	D interface{}
+	D struct{ All map[string][]ClassCode }
+}
+
+type ClassJsResp struct {
+	E int
+	M string
+	D struct{ Js map[string][]ClassCode }
 }
 
 func main() {
-	fmt.Println(time.Now().Format("2006-01-02"))
+	var ctx = context.Background()
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	// clean
+	codeSlice, err := rdb.SMembers(ctx, "class").Result()
+	if err != nil {
+		fmt.Println(err)
+	}
+	for _, code := range codeSlice {
+		if err := rdb.Del(ctx, code).Err(); err != nil {
+			fmt.Println(err)
+		}
+	}
+	rdb.Del(ctx, "class").Result()
+
+	// get class code list
 	data := getClassCode()
-	fmt.Println(data)
+	for _, code := range data {
+		if err = rdb.SAdd(ctx, "class", code.Code).Err(); err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	// get free class
+	for i := 0; i < 14; i++ {
+		codeSlice, err := getFreeClassInfo(fmt.Sprint(i))
+		if err != nil {
+			fmt.Println(err)
+		}
+		for _, freeClass := range codeSlice {
+			if err = rdb.SAdd(ctx, freeClass.Code, i).Err(); err != nil {
+				fmt.Println(err)
+			}
+		}
+	}
 }
 
-func getFreeClassInfo(classNo string) {}
+// 第`classNo`节课的空闲教室
+func getFreeClassInfo(classNo string) ([]ClassCode, error) {
+	requestUrl := "https://app.upc.edu.cn/freeclass/wap/default/search-all"
+	dateStr := time.Now().Format("2006-01-02")
+	payload := url.Values{"xq": {"青岛校区"}, "date": {dateStr}, "lh": {"全部"}, "jc[]": {classNo}}
+	resp, err := http.PostForm(requestUrl, payload)
+	if err != nil {
+		fmt.Println("Error!", err)
+	}
+	defer resp.Body.Close()
+	var respData ClassJsResp
+	err = json.NewDecoder(resp.Body).Decode(&respData)
+	if err != nil {
+		fmt.Println("Error!", err)
+	}
+	if respData.E == 0 {
+		var result []ClassCode
+		for _, v := range respData.D.Js {
+			result = append(result, v...)
+		}
+		return result, nil
+	}
+	return nil, errors.New(respData.M)
+
+}
 
 func getClassCode() []ClassCode {
 	resp, err := http.Get("https://app.upc.edu.cn/freeclass/wap/default/search-all")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error!", err)
 	}
 	defer resp.Body.Close()
-	var data ClassResp
-	err = json.NewDecoder(resp.Body).Decode(&data)
+	var respData ClassAllResp
+	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
 		fmt.Println("Error!", err)
 	}
 	var codeSlice []ClassCode
-	if data.E == 0 {
-		v := reflect.ValueOf(data.D)
-		if v.Kind() == reflect.Map {
-			for _, key := range v.MapKeys() {
-				if key.Interface().(string) == "all" {
-					locationMap := v.MapIndex(key).Interface().(map[string]interface{})
-					for _, location := range locationMap {
-						var temp ClassCode
-						content := location.([]interface{})
-						for _, d := range content {
-							mapstructure.Decode(d, &temp)
-							codeSlice = append(codeSlice, temp)
-						}
-					}
-					break
-				}
-			}
+	if respData.E == 0 {
+		for _, v := range respData.D.All {
+			codeSlice = append(codeSlice, v...)
 		}
 	}
 	return codeSlice
