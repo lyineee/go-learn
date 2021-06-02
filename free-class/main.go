@@ -7,9 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type ClassCode struct {
@@ -29,21 +33,38 @@ type ClassJsResp struct {
 	D struct{ Js map[string][]ClassCode }
 }
 
+var logger *zap.SugaredLogger
+
 func main() {
+	loggerInit()
+	defer logger.Sync()
+
+	// get envirment
+	envMap := getEnv()
+	redisHost, ok1 := envMap["REDIS_HOST"]
+	redisPort, ok2 := envMap["REDIS_PORT"]
+	if !(ok1 || ok2) {
+		logger.Warn("Use default redis server address")
+		redisHost = "localhost"
+		redisPort = "6379"
+	}
+
+	// init redis db
 	var ctx = context.Background()
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     redisHost + ":" + redisPort,
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
+
 	// clean
 	codeSlice, err := rdb.SMembers(ctx, "class").Result()
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Read redis set \"class\" fail", "error", err)
 	}
 	for _, code := range codeSlice {
 		if err := rdb.Del(ctx, code).Err(); err != nil {
-			fmt.Println(err)
+			logger.Errorf("Delete redis key \"%v\" fail", code, "error", err)
 		}
 	}
 	rdb.Del(ctx, "class").Result()
@@ -52,7 +73,7 @@ func main() {
 	data := getClassCode()
 	for _, code := range data {
 		if err = rdb.SAdd(ctx, "class", code.Code).Err(); err != nil {
-			fmt.Println(err)
+			logger.Errorf("SAdd \"%v\" fail", code.Code, "error", err)
 		}
 	}
 
@@ -60,14 +81,37 @@ func main() {
 	for i := 0; i < 14; i++ {
 		codeSlice, err := getFreeClassInfo(fmt.Sprint(i))
 		if err != nil {
-			fmt.Println(err)
+			logger.Panic("Fail getting free class info", "error", err)
 		}
 		for _, freeClass := range codeSlice {
 			if err = rdb.SAdd(ctx, freeClass.Code, i).Err(); err != nil {
-				fmt.Println(err)
+				logger.Errorf("SAdd set \"%v\" with \"%v\" fail", freeClass.Code, i, "error", err)
+
 			}
 		}
 	}
+}
+
+func loggerInit() {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
+
+	topicErrors := zapcore.AddSync(os.Stdout)
+	core := zapcore.NewCore(consoleEncoder, topicErrors, zapcore.InfoLevel)
+
+	log := zap.New(core, zap.AddCaller())
+	logger = log.Sugar()
+	logger.Info("Logger init finish")
+}
+
+func getEnv() (envList map[string]string) {
+	envList = make(map[string]string)
+	for _, s := range os.Environ() {
+		pair := strings.SplitN(s, "=", 2)
+		envList[pair[0]] = pair[1]
+	}
+	return
 }
 
 // 第`classNo`节课的空闲教室
@@ -77,13 +121,14 @@ func getFreeClassInfo(classNo string) ([]ClassCode, error) {
 	payload := url.Values{"xq": {"青岛校区"}, "date": {dateStr}, "lh": {"全部"}, "jc[]": {classNo}}
 	resp, err := http.PostForm(requestUrl, payload)
 	if err != nil {
-		fmt.Println("Error!", err)
+		logger.Errorf("Fail getting free class info", "error", err, "requestUrl", requestUrl, "payload", payload)
 	}
 	defer resp.Body.Close()
 	var respData ClassJsResp
 	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
-		fmt.Println("Error!", err)
+		logger.Errorf("Decode json fail", "error", err)
+
 	}
 	if respData.E == 0 {
 		var result []ClassCode
@@ -97,15 +142,16 @@ func getFreeClassInfo(classNo string) ([]ClassCode, error) {
 }
 
 func getClassCode() []ClassCode {
-	resp, err := http.Get("https://app.upc.edu.cn/freeclass/wap/default/search-all")
+	requestUrl := "https://app.upc.edu.cn/freeclass/wap/default/search-all"
+	resp, err := http.Get(requestUrl)
 	if err != nil {
-		fmt.Println("Error!", err)
+		logger.Errorf("Fail getting free class code info", "error", err, "requestUrl", requestUrl)
 	}
 	defer resp.Body.Close()
 	var respData ClassAllResp
 	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
-		fmt.Println("Error!", err)
+		logger.Errorf("Decode json fail", "error", err)
 	}
 	var codeSlice []ClassCode
 	if respData.E == 0 {
