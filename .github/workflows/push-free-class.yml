@@ -1,11 +1,10 @@
-name: Demo Push
+name: Push free-class image
 
 on:   
   push:
     # Publish `master` as Docker `latest` image.
     branches:
       - master
-      - seed
 
     # Publish `v1.2.3` tags as releases.
     tags:
@@ -15,7 +14,7 @@ on:
   pull_request:
 
 env:
-  IMAGE_NAME: ghtoken_product_demo
+  IMAGE_NAME: free-class
 
 jobs:
   # Push image to GitHub Packages.
