@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Build image
-        working-directory: .\free-class
+        working-directory: ./free-class
         run: docker build . --file Dockerfile --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
 
       - name: Log into registry
