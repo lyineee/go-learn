@@ -3,8 +3,8 @@ name: Push free-class image
 on:   
   push:
     # Publish `master` as Docker `latest` image.
-    branches:
-      - master
+    paths:
+      - "free-class/**"
 
     # Publish `v1.2.3` tags as releases.
     tags:
