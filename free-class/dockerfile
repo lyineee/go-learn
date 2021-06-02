@@ -1,0 +1,18 @@
+FROM golang:1.16 as builder
+
+WORKDIR /go/src/app
+COPY . .
+
+RUN go env -w GOPROXY=https://goproxy.cn,direct \
+    && echo "=> start get dependent" \
+    && go get -v github.com/go-redis/redis/v8 \
+    && go get -v go.uber.org/zap \
+    && echo "=> start compile" \
+    && go build . \
+    && echo "=> compile complete" 
+
+
+FROM alpine:3.13
+WORKDIR /root/
+COPY --from=builder /go/src/app/free-class .
+CMD [ "free-class" ]
