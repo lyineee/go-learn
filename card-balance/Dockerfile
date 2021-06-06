@@ -7,7 +7,7 @@ RUN echo "=> start get dependent" \
     && go mod tidy
     
 RUN echo "=> start compile" \
-    && CGO_ENABLED=0 go build . -o main\
+    && CGO_ENABLED=0 go build -o main .\
     && echo "=> compile complete" 
 
 
