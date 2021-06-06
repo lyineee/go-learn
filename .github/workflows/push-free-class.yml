@@ -4,11 +4,11 @@ on:
   push:
     # Publish `master` as Docker `latest` image.
     paths:
-      - "free-class/**"
+      - free-class/**
 
     # Publish `v1.2.3` tags as releases.
     tags:
-      - v*
+      - free-class/v*
 
   # Run tests for any PRs.
   pull_request:
