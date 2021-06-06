@@ -7,13 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/lyineee/go-learn/utils"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type ClassCode struct {
@@ -36,11 +34,12 @@ type ClassJsResp struct {
 var logger *zap.SugaredLogger
 
 func main() {
-	loggerInit()
+	log := utils.GetLogger()
+	logger = log.Sugar()
 	defer logger.Sync()
 
 	// get envirment
-	envMap := getEnv()
+	envMap := utils.GetEnv()
 	redisHost, ok1 := envMap["REDIS_HOST"]
 	redisPort, ok2 := envMap["REDIS_PORT"]
 	if !(ok1 || ok2) {
@@ -90,28 +89,6 @@ func main() {
 			}
 		}
 	}
-}
-
-func loggerInit() {
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
-
-	topicErrors := zapcore.AddSync(os.Stdout)
-	core := zapcore.NewCore(consoleEncoder, topicErrors, zapcore.InfoLevel)
-
-	log := zap.New(core, zap.AddCaller())
-	logger = log.Sugar()
-	logger.Info("Logger init finish")
-}
-
-func getEnv() (envList map[string]string) {
-	envList = make(map[string]string)
-	for _, s := range os.Environ() {
-		pair := strings.SplitN(s, "=", 2)
-		envList[pair[0]] = pair[1]
-	}
-	return
 }
 
 // 第`classNo`节课的空闲教室
