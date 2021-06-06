@@ -38,13 +38,13 @@ func main() {
 	if !ok {
 		logger.Panic("Dont find STUDENT_ID")
 	}
-	logger.Infof("Get environment STUDENT_ID: %v", studentId)
+	logger.Infof("Environment STUDENT_ID: %v", studentId)
 
 	cardNo, ok := envMap["CARD_NO"]
 	if !ok {
 		logger.Panic("Dont find CARD_NO")
 	}
-	logger.Infof("Get environment CARD_NO: %v", cardNo)
+	logger.Infof("Environment CARD_NO: %v", cardNo)
 
 	apiKey, ok := envMap["XXBH"]
 	if !ok {
