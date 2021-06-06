@@ -12,6 +12,11 @@ RUN echo "=> start compile" \
 
 
 FROM alpine:3.13
+ENV TIME_ZONE=Asia/Shanghai
+RUN apk update && \
+    apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/$TIME_ZONE /etc/localtime && echo $TIME_ZONE > /etc/timezone && \
+    apk del tzdata
 WORKDIR /root/
 COPY --from=builder /go/src/app/main .
 CMD [ "./main" ]
