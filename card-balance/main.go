@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -21,7 +22,6 @@ func main() {
 	// logger init
 	log := utils.GetLogger()
 	logger = log.Sugar()
-	// logger = zap.NewExample().Sugar()
 	logger.Info("Logger init finished")
 
 	// get envirment
@@ -65,8 +65,8 @@ func main() {
 	logger.Infof("balance: %.2f", balance)
 	rdb.Set(ctx, "test", balance, 0)
 	cmd := rdb.HSet(ctx, studentId, map[string]interface{}{
-		"balance":   balance,
-		"today":     today,
+		"balance":   fmt.Sprintf("%.2f", balance),
+		"today":     fmt.Sprintf("%.2f", today),
 		"timestamp": float32(time.Now().Unix()),
 	})
 	logger.Infof("Redis result: %v", cmd)
