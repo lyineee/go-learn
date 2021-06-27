@@ -15,8 +15,10 @@ import (
 )
 
 func main() {
-	// date := time.Now().Format("2006-01-02")
-	date := "2021-06-27"
+	dateTime := time.Now()
+	dateTime = dateTime.AddDate(0, 0, -1)
+	date := dateTime.Format("2006-01-02")
+
 	log.Printf("----- start generate daily feed (%s) -----", date)
 	env := utils.GetEnv()
 	if env["COLLECTION_ID"] == "" {
