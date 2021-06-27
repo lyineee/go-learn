@@ -1,4 +1,4 @@
-name: Push free-class image
+name: Push daily-feed image
 
 on:   
   push:
