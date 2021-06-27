@@ -1,4 +1,4 @@
-module github.com/lyineee/go-learn/daily-review
+module github.com/lyineee/go-learn/daily-feed
 
 go 1.16
 
