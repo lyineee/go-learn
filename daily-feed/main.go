@@ -158,7 +158,7 @@ func postArticle(text, title, collectionId, token string) (err error) {
 		return
 	}
 
-	req, err := http.NewRequest("POST", "https://wiki.lyine.pw:444/api/documents.create", bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequest("POST", "https://wiki.lyine.pw/api/documents.create", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return
 	}
