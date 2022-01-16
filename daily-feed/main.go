@@ -171,9 +171,9 @@ func postArticle(text, title, collectionId, token string) (err error) {
 	defer resp.Body.Close()
 	respJson := OutlineResponse{}
 	json.NewDecoder(resp.Body).Decode(&respJson)
-	if respJson.Ok != "true" {
-		err = errors.New(respJson.Error)
+	if respJson.Ok != "" {
+		err = errors.New(respJson.Message)
 		return
 	}
-	return
+	return nil
 }
