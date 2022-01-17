@@ -56,7 +56,6 @@ func ReadBody(body io.ReadCloser) {
 }
 
 func getNotations(dateStr string, token string) (hypoData []HypothesisNotation, err error) {
-	//
 	timeLayout := "2006-01-02"
 	timer, err := time.Parse(timeLayout, dateStr)
 	if err != nil {
@@ -68,7 +67,6 @@ func getNotations(dateStr string, token string) (hypoData []HypothesisNotation, 
 	}
 	timer = timer.Add(dua)
 	endTime := timer.Format(timeLayout)
-	//
 	query := map[string]string{
 		"user":         "acct:liuzhengyuan@hypothes.is",
 		"search_after": dateStr,
