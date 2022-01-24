@@ -52,8 +52,7 @@ jobs:
         with: 
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-          port: ${{ secrets.PORT }}
+          key: ${{ secrets.SERVER_KEY }}
           script: |
             cd $COMPOSE_PATH
             docker-compose pull $IMAGE_NAME
