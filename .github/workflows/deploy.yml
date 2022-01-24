@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COMPOSE_PATH: /root/dev
+      HUB_ID: lyine
     permissions:
       packages: write
       contents: read
@@ -47,6 +48,17 @@ jobs:
           docker tag $IMAGE_NAME $IMAGE_ID:latest
           # Push all tag image
           docker push -a $IMAGE_ID
+          
+      - name: Log into docker hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u $HUB_ID --password-stdin
+          
+      - name: Push to docker hub
+        run: |
+          DOCKER_HUB_IMAGE_ID=${HUB_ID}/$IMAGE_NAME
+          docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_ID:$VERSION
+          docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_ID:latest
+          docker push  $DOCKER_HUB_IMAGE_ID:$VERSION
+          docker push  $DOCKER_HUB_IMAGE_ID:latest
           
       - name: deploy container
         uses: appleboy/ssh-action@master
