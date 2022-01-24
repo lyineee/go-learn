@@ -1,6 +1,7 @@
 name: Push and deployimage
 
-on:   
+on:
+  workflow_dispatch:
   push:
     # Publish `image-name/v1.2.3` tags as releases.
     tags:
@@ -21,7 +22,7 @@ jobs:
       - name: Set envirment
         run: |
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          IMAGE_NAME=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\)/,\1,')
+          IMAGE_NAME=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\)/.*,\1,')
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
       - name: Build image
