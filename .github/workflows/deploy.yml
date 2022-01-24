@@ -1,7 +1,6 @@
 name: Push and deployimage
 
 on:
-  workflow_dispatch:
   push:
     # Publish `image-name/v1.2.3` tags as releases.
     tags:
