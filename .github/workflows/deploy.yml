@@ -1,0 +1,59 @@
+name: Push and deployimage
+
+on:   
+  push:
+    # Publish `image-name/v1.2.3` tags as releases.
+    tags:
+      - '**/v*'
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PATH: ~/dev
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set envirment
+        run: |
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          IMAGE_NAME=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\)/,\1,')
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+      - name: Build image
+        run: docker build ./$IMAGE_NAME --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
+
+      - name: Log into registry
+        # This is where you will update the PAT to GITHUB_TOKEN
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION 
+          # Always tag latest
+          docker tag $IMAGE_NAME $IMAGE_ID:latest
+          # Push all tag image
+          docker push -a $IMAGE_ID
+      - name: deploy container
+        uses: appleboy/ssh-action@master
+        with: 
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SERVER_KEY }}
+          script: |
+            cd $COMPOSE_PATH
+            docker-compose pull $IMAGE_NAME
+            docker-compose up -d $IMAGE_NAME
