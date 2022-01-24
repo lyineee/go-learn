@@ -10,7 +10,7 @@ jobs:
   push:
     runs-on: ubuntu-latest
     env:
-      COMPOSE_PATH: ~/dev
+      COMPOSE_PATH: /root/dev
     permissions:
       packages: write
       contents: read
