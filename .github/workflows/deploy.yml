@@ -57,5 +57,4 @@ jobs:
           envs: COMPOSE_PATH, IMAGE_NAME
           script: |
             cd $COMPOSE_PATH
-            nohup docker-compose pull $IMAGE_NAME >> deploy.log 2>&1 &
-            nohup docker-compose up -d $IMAGE_NAME >> deploy.log 2>&1 &
+            nohup zsh -c " docker-compose pull $IMAGE_NAME; [ '$(docker-compose ps | grep ${IMAGE_NAME})' ] && docker-compose up -d $IMAGE_NAME" >> deploy.log 2>&1 &
