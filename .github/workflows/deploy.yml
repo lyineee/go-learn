@@ -47,13 +47,15 @@ jobs:
           docker tag $IMAGE_NAME $IMAGE_ID:latest
           # Push all tag image
           docker push -a $IMAGE_ID
+          
       - name: deploy container
         uses: appleboy/ssh-action@master
         with: 
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SERVER_KEY }}
+          envs: COMPOSE_PATH, IMAGE_NAME
           script: |
             cd $COMPOSE_PATH
-            docker-compose pull $IMAGE_NAME
-            docker-compose up -d $IMAGE_NAME
+            nohup docker-compose pull $IMAGE_NAME >> deploy.log 2>&1 &
+            nohup docker-compose up -d $IMAGE_NAME >> deploy.log 2>&1 &
