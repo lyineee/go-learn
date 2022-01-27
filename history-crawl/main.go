@@ -104,8 +104,8 @@ func main() {
 	logger.Info("new consumer", "group", redisQueueOptions.Group, "comsumer_id", redisQueueOptions.ComsumerID)
 
 	for {
-		ctxTimeout, cancelContext := context.WithTimeout(ctxBackground, 20*time.Second)
 		msg, err := claimMessage(ctxBackground, rdb, redisQueueOptions)
+		ctxTimeout, cancelContext := context.WithTimeout(ctxBackground, 20*time.Second)
 		if err != nil {
 			continue
 		}
