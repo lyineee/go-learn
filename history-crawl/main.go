@@ -125,7 +125,7 @@ func main() {
 				continue
 			}
 		}
-		logger.Debug("complete process", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
+		logger.Info("complete process", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
 		err = updateHistory(ctxTimeout, historyCol, history)
 		if err != nil {
 			logger.Error("error", err)
