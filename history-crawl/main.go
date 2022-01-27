@@ -118,6 +118,11 @@ func main() {
 		logger.Info("get history", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
 		switch history.Type {
 		case "nga":
+			err := ngaProc(ctxTimeout, &history)
+			if err != nil {
+				logger.Error("error", err)
+				continue
+			}
 		default: //TODO only nga, for test
 			err := ngaProc(ctxTimeout, &history)
 			if err != nil {
