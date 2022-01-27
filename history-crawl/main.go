@@ -205,6 +205,12 @@ func ngaProc(ctx context.Context, history *History) error {
 		return err
 	}
 	info, err := ngaExtractor(page)
+	if info.Title == "" && info.TotalPage == 0 {
+		logger.Error("get nga info fail", "crawl page", page, "history", history)
+		return errors.New("get info fail")
+	} else if info.Title == "" || info.TotalPage == 0 {
+		logger.Warn("fail get all nga data", "crawl page", page, "history", history)
+	}
 	if err != nil {
 		return err
 	}
