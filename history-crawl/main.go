@@ -123,8 +123,8 @@ func main() {
 				logger.Error("error", err)
 				continue
 			}
-		default: //TODO only nga, for test
-			err := ngaProc(ctxTimeout, &history)
+		case "tieba":
+			err := tiebaProc(ctxTimeout, &history)
 			if err != nil {
 				logger.Error("error", err)
 				continue
