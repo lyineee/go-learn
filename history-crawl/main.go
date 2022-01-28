@@ -25,7 +25,7 @@ import (
 
 type postRequestFunc func(client *http.Client, crawlUrl string) (*http.Request, error)
 
-type NgaPostInformation struct {
+type postInformation struct {
 	Title     string
 	TotalPage int
 }
@@ -279,7 +279,7 @@ func ngaPostRequest(client *http.Client, crawlUrl string) (*http.Request, error)
 	return req, nil
 }
 
-func ngaExtractor(text string) (information NgaPostInformation, err error) {
+func ngaExtractor(text string) (information postInformation, err error) {
 	//TODO more accurate way to detect charset
 	text, err = GBKToUTF8(text)
 	if err != nil {
