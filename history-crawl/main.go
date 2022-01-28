@@ -286,22 +286,22 @@ func ngaExtractor(text string) (information postInformation, err error) {
 		return information, errors.New("string encoding fail")
 	}
 	regTitle := regexp.MustCompile(`<title>(.+?)</title>`)
-	titleRow := regTitle.FindStringSubmatch(text)
-	if len(titleRow) < 2 {
+	titleRaw := regTitle.FindStringSubmatch(text)
+	if len(titleRaw) < 2 {
 		return information, errors.New("can not find title")
 	}
-	information.Title = titleRow[1]
+	information.Title = titleRaw[1]
 
-	regTotlePage := regexp.MustCompile(`__PAGE.+?,\d+:(\d*)`)
-	totlePageRow := regTotlePage.FindStringSubmatch(text)
-	if len(totlePageRow) < 2 {
-		return information, errors.New("can not find totle page")
+	regTotalPage := regexp.MustCompile(`__PAGE.+?,\d+:(\d*)`)
+	totalPageRaw := regTotalPage.FindStringSubmatch(text)
+	if len(totalPageRaw) < 2 {
+		return information, errors.New("can not find total page")
 	}
-	totlePage, err := strconv.Atoi(totlePageRow[1])
+	totalPage, err := strconv.Atoi(totalPageRaw[1])
 	if err != nil {
-		return information, errors.New("can not find totle page")
+		return information, errors.New("can not find total page")
 	}
-	information.TotalPage = totlePage
+	information.TotalPage = totalPage
 	return information, nil
 }
 
