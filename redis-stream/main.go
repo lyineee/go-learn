@@ -29,6 +29,11 @@ type ConsumerGroup struct {
 	logger *zap.Logger
 }
 
+type XMessage struct {
+	redis.XMessage
+	Error error
+}
+
 func (stream *RedisStream) New(config *StreamConfig) (err error) {
 	stream.Client = config.Client
 	stream.Stream = config.Stream
@@ -125,27 +130,29 @@ func (group *ConsumerGroup) CreateGroup(ctx context.Context) error {
 	return nil
 }
 
-func (group *ConsumerGroup) Subscribe() (c chan redis.XMessage) {
-	c = make(chan redis.XMessage)
-	ctx := context.Background()
-	group.logger.Info("waiting for group message", zap.String("stream", group.Stream), zap.String("group", group.Group))
-	stream, err := group.Client.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group:    group.Group,
-		Streams:  []string{group.Stream, ">"},
-		Consumer: group.ConsumerID,
-		Count:    1,
-		Block:    0,
-		NoAck:    false,
-	}).Result()
-	if err != nil {
-		group.logger.Error("read redis group fail", zap.Error(err))
-		return
-	}
-	go func(c chan redis.XMessage, stream []redis.XStream, logger *zap.Logger) {
-		for _, msg := range stream[0].Messages {
-			group.logger.Debug("get message", zap.Any("message", msg))
-			c <- msg
+func (group *ConsumerGroup) Subscribe() (c chan XMessage) {
+	c = make(chan XMessage)
+	go func(c chan XMessage, group *ConsumerGroup) {
+		for {
+			ctx := context.Background()
+			group.logger.Info("waiting for group message", zap.String("stream", group.Stream), zap.String("group", group.Group))
+			stream, err := group.Client.XReadGroup(ctx, &redis.XReadGroupArgs{
+				Group:    group.Group,
+				Streams:  []string{group.Stream, ">"},
+				Consumer: group.ConsumerID,
+				Count:    1,
+				Block:    0,
+				NoAck:    false,
+			}).Result()
+			if err != nil {
+				group.logger.Error("read redis group fail", zap.Error(err))
+				c <- XMessage{Error: err}
+			}
+			for _, msg := range stream[0].Messages {
+				group.logger.Debug("get message", zap.Any("message", msg))
+				c <- XMessage{XMessage: msg}
+			}
 		}
-	}(c, stream, group.logger)
+	}(c, group)
 	return
 }
