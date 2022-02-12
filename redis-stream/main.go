@@ -125,7 +125,7 @@ func (group *ConsumerGroup) CreateGroup(ctx context.Context) error {
 		}
 	}
 	group.logger.Info(fmt.Sprintf("group %s not found in stream %s", group.group, group.stream))
-	result, err := group.client.XGroupCreate(ctx, group.stream, group.group, "$ MKSTREAM").Result()
+	result, err := group.client.XGroupCreateMkStream(ctx, group.stream, group.group, "$").Result()
 	if err != nil {
 		group.logger.Error("error when create group", zap.Any("group_options", group.group), zap.Error(err))
 		return err
