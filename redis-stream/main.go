@@ -117,12 +117,11 @@ func NewGroup(ctx context.Context, redisAddress, password, groupName, streamName
 
 func (group *ConsumerGroup) CreateGroup(ctx context.Context) error {
 	groupInfos, err := group.client.XInfoGroups(ctx, group.stream).Result()
-	if err != nil {
-		return err
-	}
-	for _, info := range groupInfos {
-		if info.Name == group.group {
-			return nil
+	if err == nil {
+		for _, info := range groupInfos {
+			if info.Name == group.group {
+				return nil
+			}
 		}
 	}
 	group.logger.Info(fmt.Sprintf("group %s not found in stream %s", group.group, group.stream))
