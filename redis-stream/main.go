@@ -105,7 +105,10 @@ func NewGroup(ctx context.Context, redisAddress, password, groupName, streamName
 		},
 	}
 	err = group.New(config)
-	group.CreateGroup(ctx) //check group
+	if err != nil {
+		return
+	}
+	err = group.CreateGroup(ctx) //check group
 	if err != nil {
 		return
 	}
