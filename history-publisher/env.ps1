@@ -1,0 +1,1 @@
+$env:REDIS="localhost:6379";$env:MONGODB="mongodb://localhost:27017";$env:LOG_STREAM="stream.test"

@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-redis/redis/v8 v8.11.4
-	github.com/lyineee/go-learn/utils v0.1.0
+	github.com/lyineee/go-learn/utils v0.1.1-0.20220213052208-c74bcf1d8c9a
 	go.mongodb.org/mongo-driver v1.8.2
 	go.uber.org/zap v1.20.0
 )

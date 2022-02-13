@@ -39,8 +39,8 @@ github.com/klauspost/compress v1.13.6/go.mod h1:/3/Vjq9QcHkK5uEr5lBEmyoZ1iFhe47e
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/lyineee/go-learn/utils v0.1.0 h1:tM+IVvFMUX5kZ+kVLclsV0GR9z3vkuklr5XT08E1CHA=
-github.com/lyineee/go-learn/utils v0.1.0/go.mod h1:mcYNcZgRCDnICZMtuDz71h9iFOoDEIU3A3i0oXmsjE8=
+github.com/lyineee/go-learn/utils v0.1.1-0.20220213052208-c74bcf1d8c9a h1:BZsRHkkaJ0IRPBBL9ps5VQWZqJ4khxdSi/dSFwoGFRY=
+github.com/lyineee/go-learn/utils v0.1.1-0.20220213052208-c74bcf1d8c9a/go.mod h1:DO3ynUFBfmCTGSLv8yfE9tqUSR02HbnChea5QPyc5Rg=
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=

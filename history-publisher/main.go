@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/lyineee/go-learn/utils"
+	"github.com/lyineee/go-learn/utils/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -30,30 +31,33 @@ type History struct {
 	Title     string             `bson:"title,omitempty"`
 }
 
-var logger *zap.SugaredLogger
+var logger *log.SugarLogger
 
 var historyDatabase string = "site"
 var historyCol string = "history"
 
 func main() {
-	log := utils.GetLogger()
-	logger = log.Sugar()
-	defer logger.Sync()
-
 	// get envirment
 	envMap := utils.GetEnv()
 	redisAddress, ok := envMap["REDIS"]
 	if !ok {
 		redisAddress = "redis:6379"
-		logger.Warn("Use default redis server address", "redis", redisAddress)
+		log.Default().Sugar().Warn("Use default redis server address", "redis", redisAddress)
 	}
 
 	mongoAddress, ok := envMap["MONGODB"]
 	if !ok {
 		mongoAddress = "mongodb://mongodb:27017/"
-		logger.Warn("Use default mongo server address", "mongo_address", mongoAddress)
+		log.Default().Sugar().Warn("Use default mongo server address", "mongo_address", mongoAddress)
 
 	}
+	logStream, ok := envMap["LOG_STREAM"]
+	if !ok {
+		log.Fatal("no env LOG_STREAM")
+	}
+	w := log.NewRedisWriterWithAddress(redisAddress, "", logStream, "go-learn.history-publisher")
+	logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
+	defer logger.Sync()
 
 	// init redis db
 	var ctx = context.Background()
@@ -78,7 +82,7 @@ func main() {
 	//TODO create group worker
 	err = createGroup(ctx, rdb, redisQueueOptions)
 	if err != nil {
-		logger.Error("create group fail", "queue_options", redisQueueOptions, "error", err)
+		logger.Errorw("create group fail", "queue_options", redisQueueOptions, "error", err)
 	}
 
 	//TODO clean up stream pending list
@@ -86,14 +90,14 @@ func main() {
 	historyCol := mongoClient.Database(historyDatabase).Collection(historyCol)
 	historys, err := getAllHistory(ctx, historyCol)
 	if err != nil {
-		logger.Error("error", err) //TODO add handler
+		logger.Errorw("get history from mongodb error", "error", err) //TODO add handler
 	}
 	for _, history := range historys {
 		//TODO check if stream exist
 		err = addIdToStream(ctx, rdb, redisQueueOptions, history)
-		logger.Info(fmt.Sprintf("add history %s to stream", history.Id.Hex()), "history", history)
+		logger.Infow(fmt.Sprintf("add history %s to stream", history.Id.Hex()), "history", history)
 		if err != nil {
-			logger.Error("error", err)
+			logger.Errorw("add history to stream error", "redis_options", redisQueueOptions, "history", history, "error", err)
 		}
 	}
 }
@@ -107,7 +111,7 @@ func getAllHistory(ctx context.Context, col *mongo.Collection) (historys []Histo
 	}
 	err = cur.All(ctx, &historys)
 	if err != nil {
-		logger.Error("error", err) //TODO add error handler
+		logger.Errorw("get history error", "error", err) //TODO add error handler
 	}
 	return
 }
@@ -123,10 +127,10 @@ func addIdToStream(ctx context.Context, rdb *redis.Client, options RedisQueueOpt
 		},
 	}).Result()
 	if err != nil {
-		logger.Error("error", err) //TODO add error handler
+		logger.Error("add to stream error", "error", err) //TODO add error handler
 	}
 	if result == "0" { //TODO validate result value
-		logger.Warn("result is 0")
+		logger.Warnw("result is 0")
 	}
 	// }
 	return nil
@@ -143,12 +147,12 @@ func createGroup(ctx context.Context, rdb *redis.Client, options RedisQueueOptio
 			return nil
 		}
 	}
-	logger.Info(fmt.Sprintf("group %s not found in stream %s", options.Group, options.Stream))
+	logger.Infow(fmt.Sprintf("group %s not found in stream %s", options.Group, options.Stream))
 	result, err := rdb.XGroupCreate(ctx, options.Stream, options.Group, "$").Result()
 	if err != nil {
-		logger.Error("error when create group", "group_options", options, "error", err)
+		logger.Errorw("error when create group", "group_options", options, "error", err)
 		return err
 	}
-	logger.Info("create group", "group_option", options, "return_code", result)
+	logger.Infow("create group", "group_option", options, "return_code", result)
 	return nil
 }
