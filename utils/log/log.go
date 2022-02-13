@@ -15,6 +15,8 @@ type Logger struct {
 type Level = zapcore.Level
 type Field = zap.Field
 
+type SugarLogger zap.SugaredLogger
+
 //field type sugar
 var (
 	Any    = zap.Any
