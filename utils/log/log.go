@@ -63,6 +63,10 @@ func (l *Logger) Fatal(msg string, fields ...Field) {
 	l.l.Fatal(msg, fields...)
 }
 
+func (l *Logger) Sugar() *zap.SugaredLogger {
+	return l.l.Sugar()
+}
+
 func (l *Logger) Sync() error {
 	return l.l.Sync()
 }
