@@ -6,17 +6,18 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
+	"github.com/lyineee/go-learn/utils/log"
 )
 
 type StreamConfig struct {
 	Client *redis.Client
 	Stream string
+	logger *log.Logger
 }
 type RedisStream struct {
 	client *redis.Client
 	stream string
-	logger *zap.Logger
+	logger *log.Logger
 }
 
 type GroupConfig struct {
@@ -28,7 +29,7 @@ type GroupConfig struct {
 type ConsumerGroup struct {
 	RedisStream
 	group      string
-	consumerID string
+	ConsumerID string
 }
 
 type XMessage struct {
@@ -39,8 +40,11 @@ type XMessage struct {
 func (stream *RedisStream) New(config *StreamConfig) (err error) {
 	stream.client = config.Client
 	stream.stream = config.Stream
-	logger, _ := zap.NewProduction()
-	stream.logger = logger
+	if config.logger != nil {
+		stream.logger = config.logger
+	} else {
+		stream.logger = log.Default()
+	}
 	return
 }
 
@@ -69,10 +73,10 @@ func (stream *RedisStream) Add(ctx context.Context, value map[string]interface{}
 		Values:     value,
 	}).Result()
 	if err != nil {
-		stream.logger.Error("error", zap.Error(err))
+		stream.logger.Error("error", log.Error(err))
 	}
 	if result == "0" { //TODO validate result value
-		stream.logger.Warn("result is 0")
+		stream.logger.Info("result is 0")
 	}
 	return nil
 }
@@ -82,10 +86,13 @@ func (group *ConsumerGroup) New(config *GroupConfig) (err error) {
 	group.client = config.Client
 	group.group = config.Group
 	group.stream = config.Stream
-	logger, _ := zap.NewProduction()
-	group.logger = logger
-	if group.consumerID = config.ConsumerID; group.consumerID == "" {
-		group.consumerID = uuid.NewString()
+	if config.logger != nil {
+		group.logger = config.logger
+	} else {
+		group.logger = log.Default()
+	}
+	if group.ConsumerID = config.ConsumerID; group.ConsumerID == "" {
+		group.ConsumerID = uuid.NewString()
 
 	}
 	return nil
@@ -127,10 +134,10 @@ func (group *ConsumerGroup) CreateGroup(ctx context.Context) error {
 	group.logger.Info(fmt.Sprintf("group %s not found in stream %s", group.group, group.stream))
 	result, err := group.client.XGroupCreateMkStream(ctx, group.stream, group.group, "$").Result()
 	if err != nil {
-		group.logger.Error("error when create group", zap.Any("group_options", group.group), zap.Error(err))
+		group.logger.Error("error when create group", log.Any("group_options", group.group), log.Error(err))
 		return err
 	}
-	group.logger.Info("create group", zap.String("group_option", group.group), zap.String("return_code", result))
+	group.logger.Info("create group", log.String("group_option", group.group), log.String("return_code", result))
 	return nil
 }
 
@@ -140,11 +147,11 @@ func (group *ConsumerGroup) Subscribe() (c chan XMessage) {
 		for {
 			msgs, err := group.Get(1)
 			if err != nil {
-				group.logger.Error("read redis group fail", zap.Error(err))
+				group.logger.Error("read redis group fail", log.Error(err))
 				c <- XMessage{Error: err}
 			}
 			for _, msg := range msgs {
-				group.logger.Debug("get message", zap.Any("message", msg))
+				//group.logger.Debug("get message", log.Any("message", msg))
 				c <- XMessage{XMessage: msg}
 			}
 		}
@@ -154,11 +161,11 @@ func (group *ConsumerGroup) Subscribe() (c chan XMessage) {
 
 func (group *ConsumerGroup) Get(count int64) (message []redis.XMessage, err error) {
 	ctx := context.Background()
-	group.logger.Info("waiting for group message", zap.String("stream", group.stream), zap.String("group", group.group))
+	group.logger.Info("waiting for group message", log.String("stream", group.stream), log.String("group", group.group))
 	stream, err := group.client.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    group.group,
 		Streams:  []string{group.stream, ">"},
-		Consumer: group.consumerID,
+		Consumer: group.ConsumerID,
 		Count:    count,
 		Block:    0,
 		NoAck:    false,
@@ -173,7 +180,7 @@ func (group *ConsumerGroup) Get(count int64) (message []redis.XMessage, err erro
 func (group *ConsumerGroup) Pop() (message redis.XMessage, err error) {
 	msgs, err := group.Get(1)
 	if err != nil {
-		group.logger.Error("read redis group fail", zap.Error(err))
+		group.logger.Error("read redis group fail", log.Error(err))
 		return
 	}
 	message = msgs[0]
@@ -183,11 +190,11 @@ func (group *ConsumerGroup) Pop() (message redis.XMessage, err error) {
 func (group *ConsumerGroup) Ack(ctx context.Context, id string) (err error) {
 	result, err := group.client.XAck(ctx, group.stream, group.group, id).Result()
 	if err != nil {
-		group.logger.Error("fail to ack redis queue", zap.Error(err))
+		group.logger.Error("fail to ack redis queue", log.Error(err))
 		return
 	}
 	if result == 0 {
-		group.logger.Warn("ack already done", zap.String("message_id", id))
+		group.logger.Info("ack already done", log.String("message_id", id))
 	}
 	return
 }
