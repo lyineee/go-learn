@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -12,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.uber.org/zap"
 )
 
 type RedisQueueOptions struct {
@@ -35,6 +35,7 @@ var logger *log.SugarLogger
 
 var historyDatabase string = "site"
 var historyCol string = "history"
+var logSubject string = "go-learn.history-publisher"
 
 func main() {
 	// get envirment
@@ -53,10 +54,14 @@ func main() {
 	}
 	logStream, ok := envMap["LOG_STREAM"]
 	if !ok {
-		log.Fatal("no env LOG_STREAM")
+		log.Info("no env LOG_STREAM, using stdout")
+		w := os.Stdout
+		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
+	} else {
+		log.Info("using redis log stream", log.String("log_stream", logStream), log.String("log_subject", logSubject))
+		w := log.NewRedisWriterWithAddress(redisAddress, "", logStream, logStream)
+		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
 	}
-	w := log.NewRedisWriterWithAddress(redisAddress, "", logStream, "go-learn.history-publisher")
-	logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
 	defer logger.Sync()
 
 	// init redis db
@@ -72,7 +77,7 @@ func main() {
 	defer cancel()
 	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoAddress))
 	if err != nil {
-		log.Panic("Fail connect to MongoDB", zap.Any("err", err))
+		log.Panic("Fail connect to MongoDB", log.Any("err", err))
 	}
 
 	redisQueueOptions := RedisQueueOptions{
