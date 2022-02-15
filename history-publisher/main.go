@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/lyineee/go-learn/utils"
 	"github.com/lyineee/go-learn/utils/log"
+	_ "github.com/lyineee/go-learn/utils/remote"
+	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -39,27 +40,38 @@ var logSubject string = "go-learn.history-publisher"
 
 func main() {
 	// get envirment
-	envMap := utils.GetEnv()
-	redisAddress, ok := envMap["REDIS"]
-	if !ok {
-		redisAddress = "redis:6379"
-		log.Default().Sugar().Warn("Use default redis server address", "redis", redisAddress)
+	viper.AutomaticEnv()
+
+	// init etcd config
+	viper.SetDefault("etcd", "http://etcd:2379")
+	viper.SetDefault("etcd_config_path", "/config/history-publisher.toml")
+
+	//database
+	viper.SetDefault("database.redis", "redis:6379")
+	viper.SetDefault("database.mongo", "mongodb://mongodb:27017")
+
+	//redis stream
+	viper.SetDefault("stream.subject", logSubject)
+
+	log.Info("all config", log.Any("ad", viper.AllSettings()))
+
+	viper.AddRemoteProvider("etcd", viper.GetString("etcd"), viper.GetString("etcd_config_path"))
+	viper.SetConfigType("toml")
+	err := viper.ReadRemoteConfig()
+	if err != nil {
+		log.Panic("cannot connect to etcd config center", log.String("etcd", viper.GetString("etcd")), log.String("etcd_path", viper.GetString("etcd_config_path")), log.Error(err))
 	}
 
-	mongoAddress, ok := envMap["MONGODB"]
-	if !ok {
-		mongoAddress = "mongodb://mongodb:27017/"
-		log.Default().Sugar().Warn("Use default mongo server address", "mongo_address", mongoAddress)
-
-	}
-	logStream, ok := envMap["LOG_STREAM"]
-	if !ok {
-		log.Info("no env LOG_STREAM, using stdout")
+	if !viper.IsSet("stream.stream") {
+		log.Info("no stream name, using stdout")
 		w := os.Stdout
 		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
 	} else {
-		log.Info("using redis log stream", log.String("log_stream", logStream), log.String("log_subject", logSubject))
-		w := log.NewRedisWriterWithAddress(redisAddress, "", logStream, logStream)
+		subject := viper.GetString("stream.subject")
+		logStream := viper.GetString("stream.stream")
+
+		log.Info("using redis log stream", log.String("log_stream", logStream), log.String("log_subject", subject))
+		w := log.NewRedisWriterWithAddress(viper.GetString("database.redis"), "", logStream, logStream)
 		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
 	}
 	defer logger.Sync()
@@ -67,15 +79,15 @@ func main() {
 	// init redis db
 	var ctx = context.Background()
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddress,
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     viper.GetString("database.redis"),
+		Password: viper.GetString("database.redis_password"), // no password set
+		DB:       viper.GetInt("database.redis_db"),          // use default DB
 	})
 
 	//init mongodb
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoAddress))
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(viper.GetString("database.mongo")))
 	if err != nil {
 		log.Panic("Fail connect to MongoDB", log.Any("err", err))
 	}
