@@ -7,20 +7,22 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
-	"github.com/lyineee/go-learn/utils"
+	"github.com/lyineee/go-learn/utils/log"
+	_ "github.com/lyineee/go-learn/utils/remote"
+	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.uber.org/zap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+
+	rstream "github.com/lyineee/go-learn/redis-stream"
 )
 
 type postRequestFunc func(client *http.Client, crawlUrl string) (*http.Request, error)
@@ -47,64 +49,84 @@ type History struct {
 	Title     string             `bson:"title,omitempty"`
 }
 
-var logger *zap.SugaredLogger
+var logger *log.SugarLogger
 
 var historyDatabase string = "site"
 var historyCol string = "history"
+var logSubject string = "go-learn.history-crawl"
 
 func main() {
-	log := utils.GetLogger()
-	logger = log.Sugar()
+	// get envirment
+	viper.AutomaticEnv()
+
+	// init etcd config
+	viper.SetDefault("etcd", "http://etcd:2379")
+	viper.SetDefault("etcd_config_path", "/config/history-crawl.toml")
+
+	//database
+	viper.SetDefault("database.redis", "redis:6379")
+	viper.SetDefault("database.mongo", "mongodb://mongodb:27017")
+
+	//redis stream
+	viper.SetDefault("log.subject", logSubject) //log
+	viper.SetDefault("stream.group", "backend.history.refresh.workers")
+	viper.SetDefault("stream.stream", "backend.history.refresh")
+
+	viper.AddRemoteProvider("etcd", viper.GetString("etcd"), viper.GetString("etcd_config_path"))
+	viper.SetConfigType("toml")
+	err := viper.ReadRemoteConfig() //get remote config
+	if err != nil {
+		log.Panic("cannot connect to etcd config center", log.String("etcd", viper.GetString("etcd")), log.String("etcd_path", viper.GetString("etcd_config_path")), log.Error(err))
+	}
+	log.Info("all config", log.Any("config", viper.AllSettings())) //print all config
+
+	//init logger
+	if !viper.IsSet("log.stream") {
+		log.Info("no stream name, using stdout")
+		w := os.Stdout
+		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
+	} else {
+		subject := viper.GetString("log.subject")
+		logStream := viper.GetString("log.stream")
+
+		log.Info("using redis log stream", log.String("log_stream", logStream), log.String("log_subject", subject))
+		w := log.NewRedisWriterWithAddress(viper.GetString("database.redis"), "", logStream, logStream)
+		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
+	}
 	defer logger.Sync()
 
-	// get envirment
-	envMap := utils.GetEnv()
-	redisAddress, ok := envMap["REDIS"]
-	if !ok {
-		redisAddress = "redis:6379"
-		logger.Warn("Use default redis server address", "redis", redisAddress)
-	}
-
-	mongoAddress, ok := envMap["MONGODB"]
-	if !ok {
-		mongoAddress = "mongodb://mongodb:27017/"
-		logger.Warn("Use default mongo server address", "mongodb", mongoAddress)
-
-	}
-
 	var ctxBackground = context.Background()
-	// init redis db
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddress,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
+	redisQueueOptions := RedisQueueOptions{
+		Group:  viper.GetString("stream.group"),
+		Stream: viper.GetString("stream.stream"),
+	}
+	group, err := rstream.NewGroup(ctxBackground, viper.GetString("database.redis"), "", redisQueueOptions.Group, redisQueueOptions.Stream)
+	if err != nil {
+		logger.Fatalw("fail connect to redis", "redis_config", redisQueueOptions, "error", err)
+	}
 
 	//init mongodb
 	ctxMongoConnect, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	mongoClient, err := mongo.Connect(ctxMongoConnect, options.Client().ApplyURI(mongoAddress))
+	mongoClient, err := mongo.Connect(ctxMongoConnect, options.Client().ApplyURI(viper.GetString("database.mongo")))
 	if err != nil {
-		log.Panic("Fail connect to MongoDB", zap.Any("err", err))
+		logger.Panicw("Fail connect to MongoDB", "err", err)
 	}
 	ctxPing, cancelPing := context.WithTimeout(ctxBackground, 10*time.Second)
 	defer cancelPing()
 	err = mongoClient.Ping(ctxPing, nil)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("connect to mongodb %s fail, exit", mongoAddress))
+		logger.Fatalw(fmt.Sprintf("connect to mongodb %s fail, exit", viper.GetString("database.mongo")))
 	}
 
-	uuid := uuid.NewString()
-	redisQueueOptions := RedisQueueOptions{
-		Group:      "backend.history.refresh.workers",
-		Stream:     "backend.history.refresh",
-		ComsumerID: uuid,
+	if err != nil {
+		logger.Fatalw("fail init redis stream", "error", err)
 	}
 
-	logger.Info("new consumer", "group", redisQueueOptions.Group, "comsumer_id", redisQueueOptions.ComsumerID)
+	logger.Infow("new consumer", "group", redisQueueOptions.Group, "comsumer_id", redisQueueOptions.ComsumerID)
 
 	for {
-		msg, err := claimMessage(ctxBackground, rdb, redisQueueOptions)
+		msg, err := claimMessage(ctxBackground, group)
 		ctxTimeout, cancelContext := context.WithTimeout(ctxBackground, 20*time.Second)
 		if err != nil {
 			continue
@@ -112,72 +134,50 @@ func main() {
 		historyCol := mongoClient.Database(historyDatabase).Collection(historyCol)
 		history, err := getHistory(ctxTimeout, historyCol, msg.MongoDBId)
 		if err != nil {
-			logger.Error("error", err) //TODO error handler
+			logger.Errorw("get history error", "error", err) //TODO error handler
 			continue
 		}
-		logger.Info("get history", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
+		logger.Infow("get history", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
 		switch history.Type {
 		case "nga":
 			err := ngaProc(ctxTimeout, &history)
 			if err != nil {
-				logger.Error("error", err)
+				logger.Errorw("process nga error", "error", err)
 				continue
 			}
 		case "tieba":
 			err := tiebaProc(ctxTimeout, &history)
 			if err != nil {
-				logger.Error("error", err)
+				logger.Errorw("process tieba error", "error", err)
 				continue
 			}
 		}
-		logger.Info("complete process", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
+		logger.Infow("complete process", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
 		err = updateHistory(ctxTimeout, historyCol, history)
 		if err != nil {
-			logger.Error("error", err)
+			logger.Error("mongodb update history error", "error", err)
 			continue
 		}
-		logger.Info("crawl success, group ack", "queue_id", msg.ID, "historyId", history.Id.Hex())
-		ACKMessage(ctxTimeout, rdb, redisQueueOptions, msg)
+		logger.Infow("crawl success, group ack", "queue_id", msg.ID, "historyId", history.Id.Hex())
+		group.Ack(ctxTimeout, msg.ID)
 		cancelContext()
 	}
 }
 
-func claimMessage(ctx context.Context, rdb *redis.Client, options RedisQueueOptions) (msg RedisStreamMessage, err error) {
-	logger.Info("waiting for group message", "stream", options.Stream, "group", options.Group)
-	stream, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group:    options.Group,
-		Streams:  []string{options.Stream, ">"},
-		Consumer: options.ComsumerID,
-		Count:    1,
-		Block:    0,
-		NoAck:    false,
-	}).Result()
+func claimMessage(ctx context.Context, group rstream.ConsumerGroup) (msg RedisStreamMessage, err error) {
+	message, err := group.Pop()
 	if err != nil {
-		logger.Error("read redis group fail", "error", err)
 		return
 	}
-	msg.ID = stream[0].Messages[0].ID
-	for key, value := range stream[0].Messages[0].Values {
+	msg.ID = message.ID
+	for key, value := range message.Values {
 		switch key {
 		case "id":
 			msg.MongoDBId = value.(string)
 		}
 	}
-	logger.Info("get message", "message", msg)
+	logger.Infow("get message", "message", msg)
 	return msg, nil
-}
-
-func ACKMessage(ctx context.Context, rdb *redis.Client, options RedisQueueOptions, msg RedisStreamMessage) error {
-
-	result, err := rdb.XAck(ctx, options.Stream, options.Group, msg.ID).Result()
-	if err != nil {
-		logger.Error("fail to ack redis queue", "error", err)
-		return err
-	}
-	if result == 0 {
-		logger.Warn("ack already done", "message", msg)
-	}
-	return nil
 }
 
 func getHistory(ctx context.Context, col *mongo.Collection, historyId string) (history History, err error) {
@@ -211,10 +211,10 @@ func ngaProc(ctx context.Context, history *History) error {
 	}
 	info, err := ngaExtractor(page)
 	if info.Title == "" && info.TotalPage == 0 {
-		logger.Error("get nga info fail", "crawl page", page, "history", history)
+		logger.Errorw("get nga info fail", "crawl page", page, "history", history)
 		return errors.New("get info fail")
 	} else if info.Title == "" || info.TotalPage == 0 {
-		logger.Warn("fail get all nga data", "crawl page", page, "history", history)
+		logger.Warnw("fail get all nga data", "crawl page", page, "history", history)
 	}
 	if err != nil {
 		return err
@@ -225,23 +225,23 @@ func ngaProc(ctx context.Context, history *History) error {
 }
 
 func crawlPage(crawlUrl string, postRequest postRequestFunc) (string, error) {
-	logger.Debug("start crwaling page", "url", crawlUrl)
+	logger.Debugw("start crwaling page", "url", crawlUrl)
 	client := http.Client{}
 	req, err := postRequest(&client, crawlUrl)
 	if err != nil {
-		logger.Error("Error when process postReqeust function", "crawl_url", crawlUrl, "error", err)
+		logger.Errorw("Error when process postReqeust function", "crawl_url", crawlUrl, "error", err)
 		return "", err
 	}
-	logger.Debug("get request", "cookies", req.Cookies())
+	logger.Debugw("get request", "cookies", req.Cookies())
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Error("Error when request crawl url", "crawl_url", crawlUrl, "error", err)
+		logger.Errorw("Error when request crawl url", "crawl_url", crawlUrl, "error", err)
 		return "", err
 	}
 	defer resp.Body.Close()
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error("Error read response body", "crawl_url", crawlUrl, "error", err)
+		logger.Errorw("Error read response body", "crawl_url", crawlUrl, "error", err)
 	}
 	return string(bytes), nil
 }
