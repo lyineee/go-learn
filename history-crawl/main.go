@@ -152,6 +152,11 @@ func main() {
 				logger.Errorw("process tieba error", "error", err)
 				continue
 			}
+		default:
+			logger.Errorw("ack with no extractor", "history", history, "type", history.Type)
+			if err := group.Ack(ctxTimeout, msg.ID); err != nil {
+				logger.Errorw("ack error", "history", history, "queue_msg", msg)
+			}
 		}
 		logger.Infow("complete process", "history", history, "consumer_id", redisQueueOptions.ComsumerID)
 		err = updateHistory(ctxTimeout, historyCol, history)
