@@ -165,7 +165,9 @@ func main() {
 			continue
 		}
 		logger.Infow("crawl success, group ack", "queue_id", msg.ID, "historyId", history.Id.Hex())
-		group.Ack(ctxTimeout, msg.ID)
+		if err := group.Ack(ctxTimeout, msg.ID); err != nil {
+			logger.Errorw("ack error", "history", history, "queue_msg", msg)
+		}
 		cancelContext()
 	}
 }
