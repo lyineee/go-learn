@@ -3,7 +3,7 @@ module github.com/lyineee/go-learn/history-crawl
 go 1.17
 
 require (
-	github.com/lyineee/go-learn/redis-stream v0.0.0-20220209154658-ea6161dbe8f5
+	github.com/lyineee/go-learn/redis-stream v0.0.0-20220215140112-f1022af614b6
 	github.com/lyineee/go-learn/utils v0.1.1-0.20220215135452-e024f414a3f9
 	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.8.3

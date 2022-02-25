@@ -104,6 +104,7 @@ func main() {
 	if err != nil {
 		logger.Fatalw("fail connect to redis", "redis_config", redisQueueOptions, "error", err)
 	}
+	redisQueueOptions.ComsumerID = group.ConsumerID
 
 	//init mongodb
 	ctxMongoConnect, cancel := context.WithTimeout(context.Background(), 20*time.Second)
