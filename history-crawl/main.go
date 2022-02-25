@@ -90,7 +90,7 @@ func main() {
 		logStream := viper.GetString("log.stream")
 
 		log.Info("using redis log stream", log.String("log_stream", logStream), log.String("log_subject", subject))
-		w := log.NewRedisWriterWithAddress(viper.GetString("database.redis"), "", logStream, logStream)
+		w := log.NewRedisWriterWithAddress(viper.GetString("database.redis"), "", logStream, subject)
 		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
 	}
 	defer logger.Sync()
