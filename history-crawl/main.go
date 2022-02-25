@@ -60,7 +60,7 @@ func main() {
 	viper.AutomaticEnv()
 
 	// init etcd config
-	viper.SetDefault("etcd", "http://etcd:2379")
+	viper.SetDefault("etcd", "etcd:2379")
 	viper.SetDefault("etcd_config_path", "/config/history-crawl.toml")
 
 	//database
