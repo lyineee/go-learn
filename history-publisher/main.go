@@ -51,9 +51,9 @@ func main() {
 	viper.SetDefault("database.mongo", "mongodb://mongodb:27017")
 
 	//redis stream
-	viper.SetDefault("stream.subject", logSubject)
+	viper.SetDefault("log.subject", logSubject)
 
-	log.Info("all config", log.Any("ad", viper.AllSettings()))
+	log.Info("all config", log.Any("config", viper.AllSettings()))
 
 	viper.AddRemoteProvider("etcd", viper.GetString("etcd"), viper.GetString("etcd_config_path"))
 	viper.SetConfigType("toml")
@@ -62,13 +62,13 @@ func main() {
 		log.Panic("cannot connect to etcd config center", log.String("etcd", viper.GetString("etcd")), log.String("etcd_path", viper.GetString("etcd_config_path")), log.Error(err))
 	}
 
-	if !viper.IsSet("stream.stream") {
+	if !viper.IsSet("log.stream") {
 		log.Info("no stream name, using stdout")
 		w := os.Stdout
 		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar()
 	} else {
-		subject := viper.GetString("stream.subject")
-		logStream := viper.GetString("stream.stream")
+		subject := viper.GetString("log.subject")
+		logStream := viper.GetString("log.stream")
 
 		log.Info("using redis log stream", log.String("log_stream", logStream), log.String("log_subject", subject))
 		w := log.NewRedisWriterWithAddress(viper.GetString("database.redis"), "", logStream, logStream)
