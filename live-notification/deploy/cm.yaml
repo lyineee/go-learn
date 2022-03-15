@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: live-notification-cm
+data:
+  live-notification.toml: |
+    crawlInterval = 5
+    crawlTimeout = 2
+    roomId = 92613
+    barkToken = "asfdsafs"
+    waitCount = 3
