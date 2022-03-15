@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: live-status
-          image: "lyineee/live-notification:0.0.1"
+          image: "lyine/live-notification:0.0.1"
           volumesMounts:
             - name: config
               mountPath: "/etc"
