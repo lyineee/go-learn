@@ -43,7 +43,7 @@ func main() {
 	viper.AutomaticEnv()
 
 	// init etcd config
-	viper.SetDefault("etcd", "etcd:2379")
+	//viper.SetDefault("etcd", "etcd:2379")
 	viper.SetDefault("etcd_config_path", "/config/history-publisher.toml")
 
 	//database
@@ -53,14 +53,30 @@ func main() {
 	//redis stream
 	viper.SetDefault("log.subject", logSubject)
 
-	log.Info("all config", log.Any("config", viper.AllSettings()))
+	log.Info("default config", log.Any("config", viper.AllSettings()))
 
-	viper.AddRemoteProvider("etcd", viper.GetString("etcd"), viper.GetString("etcd_config_path"))
-	viper.SetConfigType("toml")
-	err := viper.ReadRemoteConfig()
-	if err != nil {
-		log.Panic("cannot connect to etcd config center", log.String("etcd", viper.GetString("etcd")), log.String("etcd_path", viper.GetString("etcd_config_path")), log.Error(err))
+	if viper.IsSet("etcd") {
+		viper.AddRemoteProvider("etcd", viper.GetString("etcd"), viper.GetString("etcd_config_path"))
+		viper.SetConfigType("toml")
+		err := viper.ReadRemoteConfig()
+		if err != nil {
+			log.Panic("cannot connect to etcd config center", log.String("etcd", viper.GetString("etcd")), log.String("etcd_path", viper.GetString("etcd_config_path")), log.Error(err))
+		}
+	} else {
+		viper.SetConfigName("history-publisher.toml")
+		viper.SetConfigType("toml")
+		viper.AddConfigPath("/etc/")
+		viper.AddConfigPath("./app")
+		viper.AddConfigPath("./")
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+				log.Fatal("Config file not found")
+			} else {
+				log.Fatal("Error when read config", log.Error(err))
+			}
+		}
 	}
+	log.Info("all config", log.Any("config", viper.AllSettings()))
 
 	if !viper.IsSet("log.stream") {
 		log.Info("no stream name, using stdout")

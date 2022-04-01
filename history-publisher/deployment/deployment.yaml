@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: history-publisher-deployment
+spec:
+  schedule: "0 */8 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: history-publisher
+              image: lyine/history-publisher:v0.2.1
+          volumeMounts:
+            - name: config
+              mountPath: /etc/history-publisher.toml
+              subPath: history-publisher.toml
+          volumes:
+            - name: config
+              configMap:
+                name: history-publisher-config        
