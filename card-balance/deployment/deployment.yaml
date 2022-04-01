@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: card-balance-deployment
+spec:
+  schedule: "0,30 5-22 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: card-balance
+              image: lyine/card-balance:v0.1.1
+              env:
+                - name: REDIS_HOST
+                  value: "redis-svc"
+                - name: REDIS_PORT
+                  value: 6379
+                - name: STUDENT_ID
+                  value: 1805010118
+                - name: CARD_NO
+                  value: 95044
+                - name: XXBH
+                  value: "synjones"          
