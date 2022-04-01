@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: history-publisher-deployment
+  name: history-publisher-cronjob
 spec:
   schedule: "0 */8 * * *"
   jobTemplate:
@@ -15,8 +15,8 @@ spec:
                 - name: config
                   mountPath: /etc/history-publisher.toml
                   subPath: history-publisher.toml
-              volumes:
-                - name: config
-                  configMap:
-                    name: history-publisher-config        
+          volumes:
+            - name: config
+              configMap:
+                name: history-publisher-config        
           restartPolicy: OnFailure
