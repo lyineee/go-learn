@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: history-crawl-config
+data:
+  history-crawl.toml: |
+    #[log]
+    #stream="stream.log"
+    # subject="go-learn.history-publisher"
+
+    [database]
+    mongo="mongodb://mongodb-svc:27017"
+    redis="redis-svc:6379"
+
+    [stream]
+    #stream="stream.test"
+    #group="go-learn.history-publisher"

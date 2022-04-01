@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: history-crawl-deployment
+  labels:
+    app: history-crawl
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: history-crawl
+  template:
+    metadata:
+      labels:
+        app: history-crawl
+    spec:
+      containers:
+        - name: history-crawl
+          image: lyine/history-crawl:v0.3.1
+          volumeMounts:
+            - name: config
+              mountPath: /etc/history-crawl.toml
+              subPath: history-crawl.toml
+      volumes:
+        - name: config
+          configMap:
+            name: history-crawl-config
