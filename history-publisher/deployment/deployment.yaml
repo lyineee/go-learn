@@ -10,7 +10,7 @@ spec:
         spec:
           containers:
             - name: history-publisher
-              image: lyine/history-publisher:v0.2.1
+              image: lyine/history-publisher:v0.2.2
               volumeMounts:
                 - name: config
                   mountPath: /etc/history-publisher.toml
