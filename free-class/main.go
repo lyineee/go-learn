@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/lyineee/go-learn/utils"
+	"github.com/lyineee/go-learn/utils/log"
 	"go.uber.org/zap"
 )
 
@@ -34,16 +36,13 @@ type ClassJsResp struct {
 var logger *zap.SugaredLogger
 
 func main() {
-	log := utils.GetLogger()
-	logger = log.Sugar()
-	defer logger.Sync()
 
 	// get envirment
 	envMap := utils.GetEnv()
 	redisHost, ok1 := envMap["REDIS_HOST"]
 	redisPort, ok2 := envMap["REDIS_PORT"]
 	if !(ok1 || ok2) {
-		logger.Warn("Use default redis server address")
+		log.Default().Sugar().Warn("Use default redis server address")
 		redisHost = "localhost"
 		redisPort = "6379"
 	}
@@ -51,10 +50,16 @@ func main() {
 	// init redis db
 	var ctx = context.Background()
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisHost + ":" + redisPort,
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr: redisHost + ":" + redisPort,
 	})
+	logStream, ok := envMap["LOG_STREAM"]
+	if !ok {
+		log.Info("no env LOG_STREAM, use stdout to log")
+		logger = log.NewLogger(log.NewConsoleCore(os.Stdout), log.InfoLevel).Sugar()
+	} else {
+		w := log.NewRedisWriter(rdb, logStream, "go-learn.free-class")    //redis log stream, with static label
+		logger = log.NewLogger(log.NewJsonCore(w), log.InfoLevel).Sugar() //init sugar logger
+	}
 
 	// clean
 	codeSlice, err := rdb.SMembers(ctx, "class").Result()
