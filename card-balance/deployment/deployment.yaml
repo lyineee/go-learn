@@ -15,10 +15,11 @@ spec:
                 - name: REDIS_HOST
                   value: "redis-svc"
                 - name: REDIS_PORT
-                  value: 6379
+                  value: "6379"
                 - name: STUDENT_ID
-                  value: 1805010118
+                  value: "1805010118"
                 - name: CARD_NO
-                  value: 95044
+                  value: "95044"
                 - name: XXBH
-                  value: "synjones"          
+                  value: "synjones"
+          restartPolicy: OnFailure       

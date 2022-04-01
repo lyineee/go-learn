@@ -19,3 +19,4 @@ spec:
             - name: config
               configMap:
                 name: history-publisher-config        
+          restartPolicy: OnFailure
