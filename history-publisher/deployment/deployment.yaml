@@ -11,12 +11,12 @@ spec:
           containers:
             - name: history-publisher
               image: lyine/history-publisher:v0.2.1
-          volumeMounts:
-            - name: config
-              mountPath: /etc/history-publisher.toml
-              subPath: history-publisher.toml
-          volumes:
-            - name: config
-              configMap:
-                name: history-publisher-config        
+              volumeMounts:
+                - name: config
+                  mountPath: /etc/history-publisher.toml
+                  subPath: history-publisher.toml
+              volumes:
+                - name: config
+                  configMap:
+                    name: history-publisher-config        
           restartPolicy: OnFailure
