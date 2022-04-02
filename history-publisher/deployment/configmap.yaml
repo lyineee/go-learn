@@ -10,4 +10,4 @@ data:
 
     [database]
     mongo="mongodb://mongodb-svc:27017"
-    redis="redis-svc:63791"
+    redis="redis-svc:6379"
