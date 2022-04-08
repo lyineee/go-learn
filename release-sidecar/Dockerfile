@@ -1,7 +1,7 @@
 FROM golang:1.18 as builder
 
 WORKDIR /go/src/app
-COPY ["go.work", "main.go", "./"]
+COPY ["go.mod", "main.go", "./"]
 
 RUN echo "=> start get dependent" \
     && go mod tidy
@@ -19,4 +19,4 @@ RUN apk update && \
     apk del tzdata
 WORKDIR /root/
 COPY --from=builder /go/src/app/main .
-CMD [ "./main" ]
+ENTRYPOINT [ "./main" ]

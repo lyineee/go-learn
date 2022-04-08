@@ -1,4 +1,4 @@
-name: Push and deployimage
+name: Push release-sidecar
 
 on:
   push:
