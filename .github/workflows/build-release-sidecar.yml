@@ -52,7 +52,7 @@ jobs:
         run: |
           DOCKER_HUB_IMAGE_ID=${HUB_ID}/$IMAGE_NAME
           # Change all uppercase to lowercase
-          DOCKER_HUB_IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          DOCKER_HUB_IMAGE_ID=$(echo $DOCKER_HUB_IMAGE_ID | tr '[A-Z]' '[a-z]')
           echo DOCKER_HUB_IMAGE_ID=$DOCKER_HUB_IMAGE_ID
           docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_ID:$VERSION
           docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_ID:latest
