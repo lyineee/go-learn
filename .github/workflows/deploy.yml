@@ -60,13 +60,13 @@ jobs:
           docker push  $DOCKER_HUB_IMAGE_ID:$VERSION
           docker push  $DOCKER_HUB_IMAGE_ID:latest
           
-      - name: deploy container
-        uses: appleboy/ssh-action@master
-        with: 
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SERVER_KEY }}
-          envs: COMPOSE_PATH, IMAGE_NAME
-          script: |
-            cd $COMPOSE_PATH
-            nohup zsh -c " docker-compose pull $IMAGE_NAME; [ '$(docker-compose ps | grep ${IMAGE_NAME})' ] && docker-compose up -d $IMAGE_NAME" >> deploy.log 2>&1 &
+      # - name: deploy container
+      #   uses: appleboy/ssh-action@master
+      #   with: 
+      #     host: ${{ secrets.HOST }}
+      #     username: ${{ secrets.USERNAME }}
+      #     key: ${{ secrets.SERVER_KEY }}
+      #     envs: COMPOSE_PATH, IMAGE_NAME
+      #     script: |
+      #       cd $COMPOSE_PATH
+      #       nohup zsh -c " docker-compose pull $IMAGE_NAME; [ '$(docker-compose ps | grep ${IMAGE_NAME})' ] && docker-compose up -d $IMAGE_NAME" >> deploy.log 2>&1 &
