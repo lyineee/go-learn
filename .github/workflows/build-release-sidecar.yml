@@ -1,0 +1,59 @@
+name: Push release-sidecar
+
+on:
+  push:
+    # Publish `image-name/v1.2.3` tags as releases.
+    tags:
+      - "release-sidecar/v*"
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    env:
+      HUB_ID: lyine
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set envirment
+        run: |
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          VERSION=$(echo $VERSION | sed -e 's/^v//')
+          IMAGE_NAME=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\)/.*,\1,')
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+
+      - name: Build image
+        run: docker build ./$IMAGE_NAME --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
+
+      - name: Log into registry
+        # This is where you will update the PAT to GITHUB_TOKEN
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          echo IMAGE_ID=$IMAGE_ID
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION 
+          docker tag $IMAGE_NAME $IMAGE_ID:latest
+          # Push all tag image
+          docker push -a $IMAGE_ID
+
+      - name: Log into docker hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u $HUB_ID --password-stdin
+
+      - name: Push to docker hub
+        run: |
+          DOCKER_HUB_IMAGE_ID=${HUB_ID}/$IMAGE_NAME
+          # Change all uppercase to lowercase
+          DOCKER_HUB_IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          echo DOCKER_HUB_IMAGE_ID=$DOCKER_HUB_IMAGE_ID
+          docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_ID:$VERSION
+          docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_ID:latest
+          docker push -a $DOCKER_HUB_IMAGE_ID
