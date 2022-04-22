@@ -83,11 +83,17 @@ func initConfig() {
 	viper.SetDefault("crawlInterval", 5)
 	viper.SetDefault("crawlTimeout", 2)
 	viper.SetDefault("roomId", 92613)
-	viper.SetDefault("barkToken", "sdfsfd")
 	viper.SetDefault("waitCount", 3)
 
-	viper.SetConfigFile("/etc/live-notification.toml")
+	viper.SetConfigFile("/etc/live-notification/live-notification.toml")
 
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Default().Error("error when get config", log.Error(err))
+	}
+	if !viper.IsSet("barkToken") {
+		log.Panic("no barkToken", log.Any("config map", viper.AllSettings()))
+	}
 	crawlInterval = viper.GetInt("crawlInterval")
 	crawlTimeout = viper.GetInt("crawlTimeout")
 	roomId = viper.GetInt("roomId")
