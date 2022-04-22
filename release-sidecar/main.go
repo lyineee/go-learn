@@ -193,8 +193,7 @@ func downloadAndExtract(dst, url string) error {
 
 		// 处理下保存路径，将要保存的目录加上 header 中的 Name
 		// 这个变量保存的有可能是目录，有可能是文件，所以就叫 FileDir 了……
-		baseLength := len(filepath.Ext(filepath.Ext(dlFilename)))
-		dstFileDir := filepath.Join(dst, hdr.Name[baseLength+1:])
+		dstFileDir := filepath.Join(dst, hdr.Name)
 		// 根据 header 的 Typeflag 字段，判断文件的类型
 		switch hdr.Typeflag {
 		case tar.TypeDir: // 如果是目录时候，创建目录
